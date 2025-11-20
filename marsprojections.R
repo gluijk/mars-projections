@@ -127,6 +127,62 @@ mercator_to_equirect <- function(M,
 }
 
 
+# Hillshade calculation
+hillshademap=function(DEM, dx=25, dlight=c(0, 2, 3), gamma=1) {
+    # hillshademap() inputs DEM data and outputs a hillshade matrix
+    #
+    # DEM: digital elevation map matrix
+    # dx: DEM resolution/cell size (same units as elevation values)
+    # dlight: lighting direction. It can be defined in three ways:
+    #   a) 1D value indicating light source Azimuth in degrees (0-360)
+    #      (0=North, 90=East, 180=South, 270=West)
+    #   b) 2D vector indicating light source (X,Y) coordinates
+    #   c) 3D vector indicating light source (X,Y,Z) coordinates:
+    #      (X=South, Y=East, Z=Up)
+    #      dlight=c(0, 2, 3)  # sunrise
+    #      dlight=c(0, 0, 1)  # midday
+    #      dlight=c(0,-2, 3)  # sunset
+    #   NOTE: both in a) and b) a 45º Elevation angle is applied
+    # gamma: optional output gamma lift
+    
+    DIMY=nrow(DEM)
+    DIMX=ncol(DEM)
+    # If array turn its first dimension into a genuine matrix
+    if (!is.matrix(DEM)) {
+        print("WARNING: input DEM is not a matrix but an array. First dimension is used")
+        DEM=matrix(DEM[,,1], nrow=DIMY, ncol=DIMX)
+    }
+    
+    # Deal with lighting direction
+    if (length(dlight)==1) dlight=c(-cos(dlight*pi/180), sin(dlight*pi/180))
+    if (length(dlight)==2) dlight=c(dlight, (dlight[1]^2+dlight[2]^2)^0.5)
+    dlightM=sum(dlight^2)^0.5
+    
+    # Vectorial product to calculate n (orthogonal vector)
+    nx = 2*dx*(DEM[1:(DIMY-2), 2:(DIMX-1)] - DEM[3:DIMY,     2:(DIMX-1)])
+    ny = 2*dx*(DEM[2:(DIMY-1), 1:(DIMX-2)] - DEM[2:(DIMY-1), 3:DIMX])
+    nz = 4*dx^2
+    nM = (nx^2 + ny^2 + nz^2)^0.5
+    
+    # Dot product to calculate cos(theta)
+    dn = dlight[1]*nx + dlight[2]*ny + dlight[3]*nz  # (DIMY-2)x(DIMX-2) matrix
+    
+    # Reflectance (=cos(theta))
+    hillshadepre=dn/(dlightM*nM)
+    hillshadepre[hillshadepre<0]=0  # clip negative values
+    
+    # Add 1-pix 'lost' borders
+    hillshademap=matrix(0, nrow=DIMY, ncol=DIMX)
+    hillshademap[2:(DIMY-1), 2:(DIMX-1)]=hillshadepre
+    rm(hillshadepre)
+    hillshademap[c(1,DIMY),]=hillshademap[c(2,DIMY-1),]
+    hillshademap[,c(1,DIMX)]=hillshademap[,c(2,DIMX-1)]
+    
+    return(hillshademap^(1/gamma))
+}
+
+
+
 ###########################################################
 # 1. NASA/ESA MARS DEM
 
@@ -142,7 +198,7 @@ mars
 # max value   : 21241 
 
 plot(mars)
-RESOLUTION=res(mars)[1]
+RESOLUTION=res(mars)[1]  # 463.0935m
 
 DEMWHOLE=as.matrix(mars, wide=TRUE)
 DEMWHOLE=DEMWHOLE-min(DEMWHOLE)
@@ -163,13 +219,37 @@ writeTIFF(DEM/MAXHEIGHT, "DEM2.tif", bits.per.sample=16)
 # imgR, imgG, imgB: full planet texture from -90..+90 longitude and latitude
 ANCHO=1920
 ALTO=ANCHO
-
 out <- equirect_to_orthographic(imgR=DEM, imgG=DEM, imgB=DEM,
                                 outH=ALTO, outW=ANCHO,
                                 R=ANCHO/2)
 dim(out) <- c(ALTO, ANCHO, 3)
 writeTIFF(out/MAXHEIGHT, "mapping_dem1.tif", bits.per.sample=16)
 writeTIFF(out/MAXHEIGHT, "mapping_dem2.tif", bits.per.sample=16)
+
+
+# Generate hillshades
+
+# dlight(X=South, Y=East, Z=Up)
+# We exaggerate Mars's relief by x5 because it's very flat
+hillshade=hillshademap(DEM, dx=RESOLUTION/5, dlight=c(0, 1, 1))
+
+# Save hillshade
+writeTIFF(hillshade, "hillshade1.tif", bits.per.sample=16, compression="LZW")
+writeTIFF(hillshade, "hillshade2.tif", bits.per.sample=16, compression="LZW")
+
+# After resampling hillshade to 3840px in Photoshop...
+hillshade=readTIFF("hillshade1.tif")
+hillshade=readTIFF("hillshade2.tif")
+
+# imgR, imgG, imgB: full planet texture from -90..+90 longitude and latitude
+ANCHO=1920
+ALTO=ANCHO
+out <- equirect_to_orthographic(imgR=hillshade, imgG=hillshade, imgB=hillshade,
+                                outH=ALTO, outW=ANCHO,
+                                R=ANCHO/2)
+dim(out) <- c(ALTO, ANCHO, 3)
+writeTIFF(out, "mapping_hillshade1.tif", bits.per.sample=16, compression="LZW")
+writeTIFF(out, "mapping_hillshade2.tif", bits.per.sample=16, compression="LZW")
 
 
 
@@ -195,7 +275,6 @@ writeTIFF(DEM, "percivalonglat2.tif", bits.per.sample=16)
 # imgR, imgG, imgB: full planet texture from -90..+90 longitude and latitude
 ANCHO=ncol(DEM)
 ALTO=ANCHO
-
 # Map DEM
 out <- equirect_to_orthographic(imgR=DEM[,,1], imgG=DEM[,,2], imgB=DEM[,,3],
                                 outH=ALTO, outW=ANCHO,
