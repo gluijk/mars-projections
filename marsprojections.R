@@ -227,7 +227,7 @@ writeTIFF(out/MAXHEIGHT, "mapping_dem1.tif", bits.per.sample=16)
 writeTIFF(out/MAXHEIGHT, "mapping_dem2.tif", bits.per.sample=16)
 
 
-# Generate hillshades
+# Generate hillshades (Hellas Planitia composite)
 
 # dlight(X=South, Y=East, Z=Up)
 # We exaggerate Mars's relief by x5 because it's very flat
