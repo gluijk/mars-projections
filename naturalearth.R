@@ -7,7 +7,7 @@ library(png)  # save 8-bit PNG's
 library(Rcpp)
 
 
-# Equirectangular to orthographic projection conversion
+# Equirectangular to orthographic projection conversion (3 versions)
 
 # Single radius
 cppFunction('
@@ -253,7 +253,7 @@ draw_dotted_grid <- function(img, N, dot_step, thickness) {
 
 
 ###########################################################
-# 1. NASA/ESA MARS DEM
+# VINTAGE EARTH GLOBE
 
 
 # READ raster
