@@ -9,7 +9,7 @@ library(Rcpp)
 
 # Equirectangular to orthographic projection conversion (3 versions)
 
-# Single radius
+# 1. Single radius
 cppFunction('
 Rcpp::NumericVector equirect_to_orthographic(
         Rcpp::NumericMatrix imgR,
@@ -66,7 +66,7 @@ Rcpp::NumericVector equirect_to_orthographic(
 ')
 
 
-# Two radius
+# 2. Two radius
 cppFunction('
 Rcpp::NumericVector equirect_to_orthographic_V2(
         Rcpp::NumericMatrix imgR,
@@ -124,7 +124,7 @@ Rcpp::NumericVector equirect_to_orthographic_V2(
 ')
 
 
-# Two radius + bilinear interpolation
+# 3. Two radius + bilinear interpolation
 cppFunction('
 Rcpp::NumericVector equirect_to_orthographic_V2_bilinear(
         Rcpp::NumericMatrix imgR,
@@ -216,13 +216,13 @@ draw_dotted_grid <- function(img, N, dot_step, thickness) {
     DIMX <- dim(img)[1]
     DIMY <- dim(img)[2]
     
-    # posiciones de líneas (excluyendo bordes)
+    # Positions of lines (excluding borders)
     xs <- round(seq(1, DIMX, length.out = N + 2))[-c(1, N + 2)]
     ys <- round(seq(1, DIMY, length.out = N + 2))[-c(1, N + 2)]
     
     half_t <- floor(thickness / 2)
     
-    # --- Líneas verticales (punteadas) ---
+    # Dotted vertical lines
     for (x in xs) {
         for (y in seq(1, DIMY, by = dot_step)) {
             
@@ -235,7 +235,7 @@ draw_dotted_grid <- function(img, N, dot_step, thickness) {
         }
     }
     
-    # --- Líneas horizontales (punteadas) ---
+    # Dotted horizontal lines
     for (y in ys) {
         for (x in seq(1, DIMX, by = dot_step)) {
             
@@ -259,16 +259,16 @@ draw_dotted_grid <- function(img, N, dot_step, thickness) {
 # READ raster
 DEMWHOLE=readTIFF("naturalearth.tif")  # read TIFF (not GeoTIFF) file
 
-# Left half of DEM
+# Central area of DEM
 MIDDLE=ncol(DEMWHOLE)/2
 DEM=DEMWHOLE[, (MIDDLE-MIDDLE/2+1):(MIDDLE+MIDDLE/2), ]
 
 
 # Add grid and shadow
 grid <- draw_dotted_grid(DEM*0, 
-                         N = 9,       # líneas
-                         dot_step = 50, # espaciado del punto
-                         thickness = 10 # grosor en píxeles
+                         N = 9,          # lines
+                         dot_step = 50,  # dot spacing
+                         thickness = 10  # pixels thickness
 )
 writeTIFF(grid, "grid.tif", bits.per.sample=8)
 DEM[grid==1]=1
