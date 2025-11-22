@@ -3,7 +3,6 @@
 # https://www.overfitting.net/2025/11/proyecciones-marcianas-con-r.html
 
 library(tiff)  # save 16-bit TIFF's
-library(png)  # save 8-bit PNG's
 library(Rcpp)
 
 
